@@ -147,7 +147,7 @@ class PhysicalSplit:
         # Query teams data
         teams_df_normalized = conn.execute(f'''
             SELECT 
-                "Fixture ID" AS OptaGameId, 
+                "Fixture ID" AS OptaMatchId, 
                 ml.OptaTeamId, 
                 Minute, 
                 Period, 
@@ -196,12 +196,12 @@ class PhysicalSplit:
                 SELECT away{self.team_col} AS teamid, awayOptaId AS OptaTeamId FROM MatchLineups
             ) AS ml ON ps."Player ID" = ml.teamid
             JOIN (
-                SELECT fixtureId, OptaGameId, OptaHomeTeamId AS TeamId, homeTeamName AS TeamName, 'Home' AS Side
-                FROM fixtures WHERE OptaGameId = {opta_matchid}
+                SELECT fixtureId, OptaMatchId, OptaHomeTeamId AS TeamId, homeTeamName AS TeamName, 'Home' AS Side
+                FROM fixtures WHERE OptaMatchId = {opta_matchid}
                 UNION
-                SELECT fixtureId, OptaGameId, OptaAwayTeamId AS TeamId, awayTeamName AS TeamName, 'Away' AS Side
-                FROM fixtures WHERE OptaGameId = {opta_matchid}
-            ) AS f ON f.OptaGameId = ps."Fixture ID" AND ml.OptaTeamId=f.TeamId
+                SELECT fixtureId, OptaMatchId, OptaAwayTeamId AS TeamId, awayTeamName AS TeamName, 'Away' AS Side
+                FROM fixtures WHERE OptaMatchId = {opta_matchid}
+            ) AS f ON f.OptaMatchId = ps."Fixture ID" AND ml.OptaTeamId=f.TeamId
         ''').df()
 
 
