@@ -7,7 +7,7 @@ name = "tidy_dvms"
 version = "0.2.0"
 description = "Tidy/transform Second Spectrum data stored in the DVMS platform"
 readme = "README.md"
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.9,<3.14"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Adem Madoun", email = "madoun.adem@gmail.com" }]
