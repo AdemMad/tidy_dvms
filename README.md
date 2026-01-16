@@ -50,15 +50,24 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
 
 ## Installation
 
-```bash
-pip install dvms_client
-```
+steps to install package:
 
-> Testing from **TestPyPI**? Allow PyPI as a fallback for dependencies:
-> ```bash
-> pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple dvms_client
-> ```
-> Requires Python **3.9+**.
+```bash
+cd C:\Users\adamm\Downloads\dvms
+py -3.13 -m venv .venv
+
+
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+
+.\.venv\Scripts\Activate.ps1
+
+python -m pip install --upgrade pip
+
+
+# install package:
+python -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
+```
 
 ---
 
@@ -304,3 +313,4 @@ This is an **unofficial** client for working with DVMS / Second Spectrum trackin
 It is **not** affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.  
 Use of this software requires valid access and credentials; respect all applicable terms, licenses, and policies.
 #
+
