@@ -1,4 +1,4 @@
-# tidy-dvms
+# tidy_dvms
 
 **Unofficial** Python client for working with Premier League **DVMS / Second Spectrum** tracking data (fixtures, physical splits, and summary), with a clean API and **Polars**-first processing.  
 _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl._
@@ -170,7 +170,7 @@ Returns physical **summary** for the specified match.
 ### Loop over all fixtures
 
 ```python
-from dvms_client import DVMS
+from tidy_dvms import DVMS
 
 client = DVMS(
     season=2025,
@@ -269,8 +269,8 @@ players.to_sql("PlayersSplits", engine, if_exists="append", index=False)
 
 ```bash
 # clone
-git clone https://github.com/<your-org>/dvms_client
-cd dvms_client
+git clone https://github.com/<your-org>/tidy_dvms
+cd tidy_dvms
 
 # venv (Windows example)
 py -3.9 -m venv .venv
@@ -301,8 +301,8 @@ Follows **Semantic Versioning**:
 
 ## Author
 
-**Your Name**  
-© 2025 — dvms-client  
+**Adem Madoun**  
+© 2026 — tidy_dvms 
 Issues & feature requests: open a ticket on the repository Issues page.
 
 ---
@@ -313,5 +313,6 @@ This is an **unofficial** client for working with DVMS / Second Spectrum trackin
 It is **not** affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.  
 Use of this software requires valid access and credentials; respect all applicable terms, licenses, and policies.
 #
+
 
 
