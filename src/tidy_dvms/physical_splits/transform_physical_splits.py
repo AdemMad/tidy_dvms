@@ -1,11 +1,8 @@
 from __future__ import annotations
 import pandas as pd
-# from ..transformers import get_index_range, capture_player_frame, get_halves
-
 from tidy_dvms.transformers import get_index_range, capture_player_frame, get_halves
 import duckdb
 import polars as pl
-
 
 class PhysicalSplit:
     def __init__(self, data_list, season_id, opta_compid, opta_matchid, df_matchlineups, df_fixtures):
