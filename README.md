@@ -74,7 +74,7 @@ python -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
 ## Quickstart
 
 ```python
-from dvms_client import DVMS
+from tidy_dvms import DVMS
 
 client = DVMS(
     season=2025,                                # e.g., 2020–2025
@@ -313,4 +313,5 @@ This is an **unofficial** client for working with DVMS / Second Spectrum trackin
 It is **not** affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.  
 Use of this software requires valid access and credentials; respect all applicable terms, licenses, and policies.
 #
+
 
