@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,6 +9,7 @@ description = "Tidy/transform Second Spectrum data stored in the DVMS platform"
 readme = "README.md"
 requires-python = ">=3.9,<3.13"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Adem Madoun", email = "madoun.adem@gmail.com" }]
 maintainers = [{ name = "Adem Madoun", email = "madoun.adem@gmail.com" }]
 keywords = ["football", "soccer", "premier-league", "dvms", "second-spectrum", "data-engineering"]
@@ -27,7 +28,6 @@ classifiers = [
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Topic :: Scientific/Engineering :: Information Analysis",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.9",
@@ -38,9 +38,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/tidy_dvms"
-Issues   = "https://github.com/your-org/tidy_dvms/issues"
-Source   = "https://github.com/your-org/tidy_dvms"
+Homepage = "https://github.com/AdemMad/tidy_dvms"
+Issues   = "https://github.com/AdemMad/tidy_dvms/issues"
+Source   = "https://github.com/AdemMad/tidy_dvms"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5", "mypy>=1.10", "build", "twine"]
@@ -50,6 +50,3 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 tidy_dvms = ["py.typed"]
-
-[tool.setuptools]
-license-files = ["LICENSE"]
