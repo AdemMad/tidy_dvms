@@ -56,7 +56,7 @@ def transform_physical_total(cleaned_data, df_fixtures, df_matchlineups, opta_ma
         conn.execute(f''' 
             CREATE VIEW physical_total_1 AS
             SELECT 
-                {opta_matchid} AS OptaMatchId,      
+                {opta_matchid} AS OptaGameId,      
                 ml.OptaPlayerId, "Player", "Minutes", "Distance", "Walking",
                 "Jogging", "Running", "High Speed Running", "Sprinting",
                 "No. of High Intensity Runs", "Top Speed", "Average Speed",
@@ -74,7 +74,7 @@ def transform_physical_total(cleaned_data, df_fixtures, df_matchlineups, opta_ma
         conn.execute(f'''
             CREATE VIEW physical_total_2 AS
             SELECT 
-                pt."OptaMatchId", OptaPlayerId, "OptaTeamId" AS OptaTeamId, f."Side", 
+                pt."OptaGameId", OptaPlayerId, "OptaTeamId" AS OptaTeamId, f."Side", 
                 "Minutes", "Distance", "Walking", "Jogging", "Running", "High Speed Running" AS HighSpeedRunning, 
                 "Sprinting", "No. of High Intensity Runs" AS HighIntensityRuns, "Top Speed" AS TopSpeed, 
                 "Average Speed" AS AverageSpeed, "Distance TIP" AS DistanceTIP, "HSR Distance TIP" AS HSRDistanceTIP, 
@@ -86,12 +86,12 @@ def transform_physical_total(cleaned_data, df_fixtures, df_matchlineups, opta_ma
             FROM physical_total_1 pt
             JOIN 
             (
-                SELECT fixtureId, OptaMatchId, OptaHomeTeamId AS TeamId, 'Home' AS Side
-                FROM fixtures WHERE optaMatchId = {opta_matchid}
+                SELECT fixtureId, OptaGameId, OptaHomeTeamId AS TeamId, 'Home' AS Side
+                FROM fixtures WHERE OptaGameId = {opta_matchid}
                 UNION
-                SELECT fixtureId, OptaMatchId, OptaAwayTeamId AS TeamId, 'Away' AS Side
-                FROM fixtures WHERE optaMatchId = {opta_matchid}
-            ) AS f ON f.OptaMatchId = pt.OptaMatchId AND pt.OptaTeamId=f.TeamId
+                SELECT fixtureId, OptaGameId, OptaAwayTeamId AS TeamId, 'Away' AS Side
+                FROM fixtures WHERE OptaGameId = {opta_matchid}
+            ) AS f ON f.OptaGameId = pt.OptaGameId AND pt.OptaTeamId=f.TeamId
             ''')
         
         # Combine Home + Away team
@@ -110,7 +110,7 @@ def transform_physical_total(cleaned_data, df_fixtures, df_matchlineups, opta_ma
         # final df
         final_df = conn.execute(f'''
             SELECT  
-                OptaMatchId, REPLACE("OptaPlayerId", 'Unknown opta', '0') AS "OptaPlayerId", 
+                OptaGameId, REPLACE("OptaPlayerId", 'Unknown opta', '0') AS "OptaPlayerId", 
                 OptaTeamId, Minutes, Distance, Walking, Jogging, Running, HighSpeedRunning, 
                 Sprinting, HighIntensityRuns, TopSpeed, AverageSpeed, DistanceTIP, HSRDistanceTIP, 
                 SprintDistanceTIP, HighIntensityRunsTIP, DistanceOTIP, HSRDistanceOTIP, 
