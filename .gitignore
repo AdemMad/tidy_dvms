@@ -1,0 +1,73 @@
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+
+# ---- Python basics ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+
+# ---- Virtual envs ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Packaging / build artifacts ----
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+pip-wheel-metadata/
+*.whl
+
+# ---- Test/coverage ----
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ---- Type checkers / linters ----
+.mypy_cache/
+.pytype/
+.ruff_cache/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- IDE / editor ----
+.vscode/
+.idea/
+*.code-workspace
+
+# ---- Environment / secrets ----
+.env
+.env.*
+*.env
+*.key
+*.pem
+*.p12
+secrets.json
+credentials.json
+
+# ---- Logs / temp ----
+*.log
+logs/
+tmp/
+temp/
+
+# ---- Project specific ----
+# compiled C-extensions (if any)
+src/**/*.c
+src/**/*.cpp
+
+# If you generate artifacts during examples or docs:
+examples/**/outputs/
+docs/_build/
+
+# ---- Optional: OS-specific Python version managers ----
+.python-version
