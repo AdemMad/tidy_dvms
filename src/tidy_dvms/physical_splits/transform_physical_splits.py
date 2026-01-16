@@ -175,7 +175,7 @@ class PhysicalSplit:
             SELECT 
                 Fixture, 
                 ps."Match Date" AS MatchDate,
-                UPPER(f.TeamName) as TeamName,
+                f.TeamName as TeamName,
                 Minute, 
                 Period, 
                 "Total Distance" AS TotalDistance, 
