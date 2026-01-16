@@ -50,20 +50,22 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
 
 ## Installation
 
-steps to install package:
-
 ```bash
-cd C:\Users\adamm\Downloads\dvms
+
+# navigate to venv directory
+cd C:\Users\ademmadoun\Downloads\dvms
+
+# create venv
 py -3.13 -m venv .venv
 
-
+# grant venv activation permission
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
-
+# activate venv
 .\.venv\Scripts\Activate.ps1
 
+# upgrade pip
 python -m pip install --upgrade pip
-
 
 # install package:
 python -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
@@ -313,6 +315,7 @@ This is an **unofficial** client for working with DVMS / Second Spectrum trackin
 It is **not** affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.  
 Use of this software requires valid access and credentials; respect all applicable terms, licenses, and policies.
 #
+
 
 
 
