@@ -5,7 +5,11 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
 
 > ⚠️ You must have valid DVMS credentials issued by your organisation. Do **not** commit credentials to source control.
 
+<<<<<<< HEAD
 ---changement
+=======
+---dsds
+>>>>>>> c55c9ea7674ed4fc8b5757c34cd0772796aeb403
 
 ## Table of Contents
 
