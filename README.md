@@ -1,11 +1,11 @@
 # tidy_dvms
 
 **Unofficial** Python client for working with Premier League **DVMS / Second Spectrum** tracking data (fixtures, physical splits, and summary), with a clean API and **Polars**-first processing.  
-_Not affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl._
+_Not affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl
 
 > ⚠️ You must have valid DVMS credentials issued by your organisation. Do **not** commit credentials to source control.
 
----
+---changement
 
 ## Table of Contents
 
