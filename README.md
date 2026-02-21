@@ -1,15 +1,11 @@
 # tidy_dvms
 
-**Unofficial** Python client for working with Premier League **DVMS / Second Spectrum** tracking data (fixtures, physical splits, and summary), with a clean API and **Polars**-first processing.  
-_Not affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl
+**Unofficial** Python client for working with Premier League **DVMS / Second Spectrum** tracking data (fixtures, physical splits, and summary), with a clean API and **Polars-first** processing.  
+_Not affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl._
 
 > ⚠️ You must have valid DVMS credentials issued by your organisation. Do **not** commit credentials to source control.
 
-<<<<<<< HEAD
----changement
-=======
----dsds
->>>>>>> c55c9ea7674ed4fc8b5757c34cd0772796aeb403
+---
 
 ## Table of Contents
 
@@ -43,7 +39,7 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
   client.splits(opta_match_id=..., type="players" | "teams")
   client.summary(opta_match_id=...)
   ```
-- Choose **Pandas DataFrame** or **raw JSON (list[dict])** for fixtures:
+- Choose **DataFrame** or **raw JSON (list[dict])** for fixtures:
   - DataFrame for quick exploration / saving to CSV.
   - JSON for flexible iteration (e.g., loop over `opta_match_id`).
 - Only returns assets for **matches with available data** (played/processed).
@@ -55,23 +51,17 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
 ## Installation
 
 ```bash
+python -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
+```
 
-# navigate to venv directory
-cd C:\Users\ademmadoun\Downloads\dvms
+### Windows (optional: venv example)
 
-# create venv
+```bash
+cd C:\Users\your-user\Downloads\dvms
 py -3.13 -m venv .venv
-
-# grant venv activation permission
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-
-# activate venv
 .\.venv\Scripts\Activate.ps1
-
-# upgrade pip
 python -m pip install --upgrade pip
-
-# install package:
 python -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
 ```
 
@@ -84,17 +74,17 @@ from tidy_dvms import DVMS
 
 client = DVMS(
     season=2025,                                # e.g., 2020–2025
-    competition_name="English Premier League",  # "English Premier League", "EFL Championship", "EFL Cup", "FA Cup"
+    competition_name="English Premier League",  # e.g., EPL / Championship / Cups (depending on access)
     username="YOUR_EMAIL",
     password="YOUR_PASSWORD",
 )
 
 # 1) Fixtures (choose representation)
-fixtures_df   = client.fixtures(format="dataframe")  # Pandas DataFrame
+fixtures_df   = client.fixtures(format="dataframe")  # DataFrame
 fixtures_json = client.fixtures(format="json")       # list[dict]
 
 # 2) Choose a match and compute outputs
-opta_match_id = 2561923      # integer value
+opta_match_id = 2561923
 players = client.splits(opta_match_id=opta_match_id, type="players")
 teams   = client.splits(opta_match_id=opta_match_id, type="teams")
 summary = client.summary(opta_match_id=opta_match_id)
@@ -122,8 +112,8 @@ DVMS(
 Creates an authenticated client and sets defaults used by all calls.
 
 - `season` — e.g., `2025`
-- `competition_name` — `"English Premier League"`, `"EFL Championship"`, `"EFL Cup"`, `"FA Cup"`
-- `username`, `password` — your DVMS credentials
+- `competition_name` — e.g., `"English Premier League"`, `"EFL Championship"`, `"EFL Cup"`, `"FA Cup"` (depending on access)
+- `username`, `password` — DVMS credentials
 - Retry/timeout knobs for transient HTTP issues
 
 ---
@@ -136,11 +126,11 @@ fixtures(format: str = "dataframe") -> pl.DataFrame | list[dict]
 
 Fetches fixtures for the configured season/competition and **caches assets** for later calls.
 
-- `format="dataframe"` (default): returns a **Pandas DataFrame** with normalized `opta_match_id` (no leading `'g'`)
-- `format="json"`: returns the raw **list[dict]** response
+- `format="dataframe"` (default): returns a DataFrame with normalized `opta_match_id` (no leading `'g'`)
+- `format="json"`: returns the raw `list[dict]` response
 
 Side effects:
-- Caches competition IDs and fixture assets (enables `splits()`/`summary()`).
+- Caches competition IDs and fixture assets (enables `splits()` / `summary()`).
 
 ---
 
@@ -186,12 +176,13 @@ client = DVMS(
 )
 
 fx = client.fixtures(format="dataframe")
+
+# If fx is Polars: fx.get_column(...).unique() works
 for mid in fx.get_column("opta_match_id").unique():
     players = client.splits(opta_match_id=mid, type="players")
     teams   = client.splits(opta_match_id=mid, type="teams")
     summary = client.summary(opta_match_id=mid)
 
-    # Save (Pandas → CSV)
     players.write_csv(f"players_{mid}.csv")
     teams.write_csv(f"teams_{mid}.csv")
     summary.write_csv(f"summary_{mid}.csv")
@@ -242,6 +233,8 @@ players.to_sql("PlayersSplits", engine, if_exists="append", index=False)
 - Then:
   ```python
   import os
+  from tidy_dvms import DVMS
+
   client = DVMS(
       season=2025,
       competition_name="English Premier League",
@@ -255,13 +248,13 @@ players.to_sql("PlayersSplits", engine, if_exists="append", index=False)
 ## Troubleshooting
 
 - **`RuntimeError: Call fixtures() first`**  
-  Load fixtures at least once to cache IDs and assets.
+  Call `fixtures()` once to cache IDs and assets.
 
 - **`ValueError: Competition not found`**  
-  Check `competition_name` spelling. Supported: English Premier League, EFL Championship, EFL Cup, FA Cup.
+  Check `competition_name` spelling (and that your account has access).
 
-- **401/403 token issues**  
-  Verify credentials and account access.
+- **401/403 auth issues**  
+  Verify credentials and account permissions.
 
 - **429 / transient HTTP failures**  
   Increase `request_retries` and `sleep_between_retries`. Avoid tight loops.
@@ -274,17 +267,14 @@ players.to_sql("PlayersSplits", engine, if_exists="append", index=False)
 ## Development
 
 ```bash
-# clone
-git clone https://github.com/<your-org>/tidy_dvms
+git clone https://github.com/AdemMad/tidy_dvms
 cd tidy_dvms
 
-# venv (Windows example)
-py -3.9 -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
 python -m pip install -e .[dev]
 
-# tests
 python -m pytest -q
 ```
 
@@ -308,8 +298,8 @@ Follows **Semantic Versioning**:
 ## Author
 
 **Adem Madoun**  
-© 2026 — tidy_dvms 
-Issues & feature requests: open a ticket on the repository Issues page.
+© 2026 — tidy_dvms  
+Issues & feature requests: please open an issue in the repository.
 
 ---
 
@@ -318,8 +308,3 @@ Issues & feature requests: open a ticket on the repository Issues page.
 This is an **unofficial** client for working with DVMS / Second Spectrum tracking data.  
 It is **not** affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.  
 Use of this software requires valid access and credentials; respect all applicable terms, licenses, and policies.
-#
-
-
-
-
