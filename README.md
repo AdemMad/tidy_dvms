@@ -51,7 +51,7 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
 ## Installation
 
 ```bash
-python -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
+py -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
 ```
 
 ### Windows (optional: venv example)
@@ -61,8 +61,8 @@ cd C:\Users\your-user\Downloads\dvms
 py -3.13 -m venv .venv
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
+py -m pip install --upgrade pip
+py -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
 ```
 
 ---
@@ -272,10 +272,10 @@ cd tidy_dvms
 
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -U pip
-python -m pip install -e .[dev]
+py -m pip install -U pip
+py -m pip install -e .[dev]
 
-python -m pytest -q
+py -m pytest -q
 ```
 
 ---
@@ -308,3 +308,4 @@ Issues & feature requests: please open an issue in the repository.
 This is an **unofficial** client for working with DVMS / Second Spectrum tracking data.  
 It is **not** affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.  
 Use of this software requires valid access and credentials; respect all applicable terms, licenses, and policies.
+
