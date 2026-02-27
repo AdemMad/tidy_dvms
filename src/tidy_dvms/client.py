@@ -298,8 +298,6 @@ class DVMS:
     def _collect_fixture_assets(self, fixtures: list[dict]) -> list[dict]:
         out: list[dict] = []
         for fx in fixtures:
-            if not fx.get("assetEmailSent"):
-                continue
             fx_match_id_clean = (fx.get("optaMatchId") or "").replace("g", "")
             for asset in fx.get("assets", []):
                 sub_type = asset.get("subType")
@@ -320,6 +318,7 @@ class DVMS:
                             "asset_id": asset["assetId"],
                             "sub_type": sub_type,
                             "key": asset.get("key"),
+                            "ready": asset.get("ready"),
                         }
                     )
         return out
@@ -327,10 +326,20 @@ class DVMS:
     def _find_asset(self, *, opta_match_id: str, sub_type: int) -> dict:
         if not self._fixture_assets:
             raise RuntimeError("No cached assets. Call fixtures(...) first.")
-        for a in self._fixture_assets:
-            if a["opta_match_id"] == str(opta_match_id) and a["sub_type"] == sub_type:
-                return a
-        raise ValueError(f"No asset for match {opta_match_id} with sub_type {sub_type}")
+        match_assets = [a for a in self._fixture_assets if a["opta_match_id"] == str(opta_match_id)]
+        if not match_assets:
+            raise ValueError(f"No cached assets for match {opta_match_id}.")
+
+        typed_assets = [a for a in match_assets if a["sub_type"] == sub_type]
+        if typed_assets:
+            ready_assets = [a for a in typed_assets if a.get("ready") is True]
+            return ready_assets[0] if ready_assets else typed_assets[0]
+
+        available_subtypes = sorted({a["sub_type"] for a in match_assets})
+        raise ValueError(
+            f"No asset for match {opta_match_id} with sub_type {sub_type}. "
+            f"Available sub_types: {available_subtypes}"
+        )
 
     # -------- Downloads --------
     def _download_metadata(self, opta_match_id: str) -> dict:
