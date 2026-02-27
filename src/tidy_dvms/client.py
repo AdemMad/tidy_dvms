@@ -98,6 +98,134 @@ class DVMS:
         84: "Deleted After Review",
     }
 
+    OUTCOME_DEFINITIONS = {
+        1: {
+            "name": "Pass",
+            "outcome_0": "Unsuccessful pass ie pass did not find team mate",
+            "outcome_1": "Successful pass",
+        },
+        2: {
+            "name": "Offside Pass",
+            "outcome_0": None,
+            "outcome_1": "Always set to '1'",
+        },
+        3: {
+            "name": "Take On",
+            "outcome_0": "Unsuccessful - player lost possession or was tackled",
+            "outcome_1": "Successful take on",
+        },
+        4: {
+            "name": "Foul",
+            "outcome_0": "Player who committed the foul",
+            "outcome_1": "Player who was fouled",
+        },
+        5: {
+            "name": "Out",
+            "outcome_0": "The team that put the ball out",
+            "outcome_1": "The team that therefore gained possession",
+        },
+        6: {
+            "name": "Corner Awarded",
+            "outcome_0": "The team that conceded the corner",
+            "outcome_1": "The team that won the corner",
+        },
+        7: {
+            "name": "Tackle",
+            "outcome_0": (
+                "Unsuccessful attempted tackle/challenge from this team to the team on the ball "
+                "ie other team retains possession after the challenge"
+            ),
+            "outcome_1": "Successful tackle ie challenging player wins possession of the ball from the other team",
+        },
+        8: {"name": "Interception", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        9: {"name": "Turnover", "outcome_0": "n.a", "outcome_1": "n.a"},
+        10: {"name": "Save", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        11: {
+            "name": "Claim",
+            "outcome_0": (
+                "Keeper drops the ball after an attempted catch from a cross. The keeper may then pick up "
+                "the ball again and retain possession, but this would be a separate event"
+            ),
+            "outcome_1": "Keeper catches the cross in one attempt ie no drop",
+        },
+        12: {"name": "Clearance", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        13: {"name": "Miss", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        14: {"name": "Post", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        15: {"name": "Attempt Saved", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        16: {"name": "Goal", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        17: {"name": "Card", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        18: {"name": "Player off", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        19: {"name": "player on", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        20: {"name": "player retired", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        21: {"name": "player returns", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        22: {"name": "player becomes goalkeeper", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        23: {"name": "Goalkeeper becomes player", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        24: {"name": "Condition change", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        25: {"name": "Official change", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        27: {"name": "Start delay", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        28: {"name": "End delay", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        30: {"name": "End", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        32: {"name": "Start", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        34: {"name": "Team set up", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        35: {"name": "Player changed position", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        36: {"name": "Player changed jersey number", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        37: {"name": "Collection end", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        38: {"name": "Temp_Goa", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        39: {"name": "Temp_Attempt", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        40: {"name": "Formation change", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        41: {"name": "Punch", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        42: {"name": "Good skill", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        43: {"name": "Deleted Event", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        44: {"name": "Aerial", "outcome_0": "Player lost aerial duel", "outcome_1": "Player won the aerial duel"},
+        45: {
+            "name": "Challenge",
+            "outcome_0": (
+                "Always set to '0' ie. a challenge by definition is unsuccessful and the player does not "
+                "win the ball (by winning the ball this would be a tackle ie type_id='7')"
+            ),
+            "outcome_1": None,
+        },
+        47: {"name": "Rescinded card", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        49: {"name": "Ball recovery", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        50: {"name": "Dispossessed", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        51: {"name": "Error", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        52: {"name": "Keeper pick-up", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        53: {"name": "Cross not claimed", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        54: {"name": "Smother", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        55: {"name": "Offside provoked", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        56: {"name": "Shield ball opp", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        57: {"name": "Foul throw in", "outcome_0": "Player who conceded the foul throw", "outcome_1": "Player who won the foul throw"},
+        58: {"name": "Penalty faced", "outcome_0": "Always set to '0'", "outcome_1": None},
+        59: {
+            "name": "Keeper Sweeper",
+            "outcome_0": (
+                "Goalkeeper comes off the line and clears ball but possession switches to other team "
+                "(not the same as player clearing ball out of play which is outcome='1')"
+            ),
+            "outcome_1": (
+                "Goalkeeper comes off the line and either clears ball to another team mate "
+                "(ie possession retained) or straight out of play"
+            ),
+        },
+        60: {"name": "Chance missed", "outcome_0": "Always set to '0'", "outcome_1": None},
+        61: {
+            "name": "Ball touch",
+            "outcome_0": "Player unsuccessfully controlled the ball ie lost possession",
+            "outcome_1": "Ball simply hit player unintentionally",
+        },
+        63: {"name": "Temp_save", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        64: {"name": "Resume", "outcome_0": None, "outcome_1": None},
+        65: {"name": "CRD", "outcome_0": None, "outcome_1": None},
+        66: {"name": "Possession Data", "outcome_0": None, "outcome_1": None},
+        67: {"name": "50/50", "outcome_0": "Player lost 50/50 duel", "outcome_1": "Player won 50/50 duel"},
+        68: {"name": "Referee Drop Ball", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        69: {"name": "Failed to block", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        70: {"name": "Injury Time Announcement", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        71: {"name": "Coach Setup", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        72: {"name": "Caught offside", "outcome_0": None, "outcome_1": "Always set to '1'"},
+        73: {"name": "Other Ball Contact", "outcome_0": None, "outcome_1": "Always set to '1'"},
+    }
+
     COMP_MAP = {
         "English Premier League": "8",
         "EFL Championship": "10",
@@ -238,7 +366,7 @@ class DVMS:
 
     def events(self, *, opta_match_id: str | int, format: str = "dataframe"):
         """
-        Get match events for a match and enrich with event type names.
+        Get match events for a match and enrich with event type and outcome text.
 
         Args:
             opta_match_id: Match id (with or without 'g' prefix)
@@ -247,7 +375,15 @@ class DVMS:
         self._ensure_fixtures_loaded()
 
         events_xml = self._download_physical(str(opta_match_id), self.SUBTYPE_EVENTS)
-        match_events = self._parse_events_xml(events_xml)
+        player_lookup: dict[str, str] = {}
+        try:
+            metadata_raw = self._download_metadata(str(opta_match_id))
+            player_lookup = self._build_player_lookup(metadata_raw)
+        except Exception:
+            # Events can still be returned even if metadata/player names are unavailable.
+            player_lookup = {}
+
+        match_events = self._parse_events_xml(events_xml, player_lookup=player_lookup)
         events_df = self._join_events_with_type_labels(match_events)
 
         fmt = format.lower()
@@ -383,32 +519,73 @@ class DVMS:
         url = f"{self.BASE_URL}/dvms/{competition_id}/fixtures/{fixture_id}/download/{asset_id}"
         return self._get(url).json()
 
-    def _parse_events_xml(self, xml_text: str) -> list[dict]:
+    def _build_player_lookup(self, metadata_raw: dict | None) -> dict[str, str]:
+        lookup: dict[str, str] = {}
+        if not metadata_raw:
+            return lookup
+
+        for side in ("homePlayers", "awayPlayers"):
+            for player in metadata_raw.get(side, []) or []:
+                player_id = (
+                    player.get("optaId")
+                    or player.get("OptaId")
+                    or player.get("playerId")
+                    or player.get("id")
+                )
+                player_name = (
+                    player.get("name")
+                    or player.get("playerName")
+                    or player.get("fullName")
+                )
+                if player_id is not None and player_name:
+                    lookup[str(player_id)] = str(player_name)
+        return lookup
+
+    def _parse_events_xml(self, xml_text: str, player_lookup: dict[str, str] | None = None) -> list[dict]:
         try:
             root = ET.fromstring(xml_text)
         except ET.ParseError as e:
             raise RuntimeError("Failed to parse events XML payload.") from e
 
+        player_lookup = player_lookup or {}
         match_events: list[dict] = []
         for game in root.findall(".//Game"):
+            home_team_id = str(game.get("home_team_id") or "")
+            away_team_id = str(game.get("away_team_id") or "")
+            home_team_name = game.get("home_team_name")
+            away_team_name = game.get("away_team_name")
+            fixture = None
+            if home_team_name and away_team_name:
+                fixture = f"{home_team_name} - {away_team_name}"
+
             for event in game.findall("Event"):
+                team_id = event.get("team_id")
+                team_name = event.get("team_name")
+                if not team_name:
+                    if team_id == home_team_id:
+                        team_name = home_team_name
+                    elif team_id == away_team_id:
+                        team_name = away_team_name
+
+                player_id = event.get("player_id")
+                player_name = event.get("player_name")
+                if not player_name and player_id is not None:
+                    player_name = player_lookup.get(str(player_id))
+
                 match_events.append(
                     {
-                        "opta_matchid": game.get("id"),
-                        "id": event.get("id"),
-                        "event_id": event.get("event_id"),
+                        "event_id": event.get("id"),
                         "type_id": event.get("type_id"),
-                        "period_id": event.get("period_id"),
+                        "outcome_code": event.get("outcome"),
+                        "player_name": player_name,
+                        "team_name": team_name,
                         "min": event.get("min"),
                         "sec": event.get("sec"),
-                        "player_id": event.get("player_id"),
-                        "team_id": event.get("team_id"),
-                        "outcome": event.get("outcome"),
                         "x": event.get("x"),
                         "y": event.get("y"),
                         "timestamp": event.get("timestamp"),
-                        "timestamp_utc": event.get("timestamp_utc"),
-                        "last_modified": event.get("last_modified"),
+                        "fixture": fixture,
+                        "game_date": game.get("game_date"),
                     }
                 )
         return match_events
@@ -417,53 +594,74 @@ class DVMS:
         if not match_events:
             return pl.DataFrame(
                 schema={
-                    "opta_matchid": pl.Utf8,
-                    "id": pl.Utf8,
-                    "event_id": pl.Utf8,
-                    "type_id": pl.Utf8,
-                    "period_id": pl.Utf8,
+                    "player_name": pl.Utf8,
+                    "team_name": pl.Utf8,
                     "min": pl.Utf8,
                     "sec": pl.Utf8,
-                    "player_id": pl.Utf8,
-                    "team_id": pl.Utf8,
                     "outcome": pl.Utf8,
                     "x": pl.Utf8,
                     "y": pl.Utf8,
                     "timestamp": pl.Utf8,
-                    "timestamp_utc": pl.Utf8,
-                    "last_modified": pl.Utf8,
-                    "event_type": pl.Utf8,
+                    "event_type_name": pl.Utf8,
+                    "fixture": pl.Utf8,
+                    "game_date": pl.Utf8,
                 }
             ).to_pandas()
 
         events_df = pl.DataFrame(match_events)
-        event_types_df = pl.DataFrame(
-            {
-                "type_id": list(self.EVENT_TYPES.keys()),
-                "event_type": list(self.EVENT_TYPES.values()),
-            }
-        )
+        event_defs_df = pl.DataFrame(self._build_event_definitions_rows())
 
         con = duckdb.connect()
         try:
             con.register("events_raw", events_df.to_arrow())
-            con.register("event_types", event_types_df.to_arrow())
+            con.register("event_defs", event_defs_df.to_arrow())
             return con.execute(
                 """
                 SELECT
-                    e.*,
-                    t.event_type
+                    e.player_name,
+                    e.team_name,
+                    e.min,
+                    e.sec,
+                    e.x,
+                    e.y,
+                    e.timestamp,
+                    COALESCE(d.event_type_name, CONCAT('Unknown ', e.type_id)) AS event_type_name,
+                    COALESCE(
+                        CASE
+                            WHEN e.outcome_code = '0' THEN d.outcome_0
+                            WHEN e.outcome_code = '1' THEN d.outcome_1
+                            ELSE NULL
+                        END,
+                        e.outcome_code
+                    ) AS outcome,
+                    e.fixture,
+                    e.game_date
                 FROM events_raw e
-                LEFT JOIN event_types t
-                    ON TRY_CAST(e.type_id AS INTEGER) = t.type_id
+                LEFT JOIN event_defs d
+                    ON TRY_CAST(e.type_id AS INTEGER) = d.type_id
                 ORDER BY
                     TRY_CAST(e.min AS INTEGER) NULLS LAST,
                     TRY_CAST(e.sec AS INTEGER) NULLS LAST,
-                    TRY_CAST(e.id AS BIGINT) NULLS LAST
+                    TRY_CAST(e.event_id AS BIGINT) NULLS LAST
                 """
             ).fetchdf()
         finally:
             con.close()
+
+    def _build_event_definitions_rows(self) -> list[dict]:
+        all_type_ids = sorted(set(self.EVENT_TYPES.keys()) | set(self.OUTCOME_DEFINITIONS.keys()))
+        rows: list[dict] = []
+        for type_id in all_type_ids:
+            outcome_def = self.OUTCOME_DEFINITIONS.get(type_id, {})
+            rows.append(
+                {
+                    "type_id": type_id,
+                    "event_type_name": outcome_def.get("name") or self.EVENT_TYPES.get(type_id),
+                    "outcome_0": outcome_def.get("outcome_0"),
+                    "outcome_1": outcome_def.get("outcome_1"),
+                }
+            )
+        return rows
 
     # (Optional) Events / Tracking helpers you can add later if needed:
     # def tracking(self, *, opta_match_id: str) -> pl.DataFrame: ...
