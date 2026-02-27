@@ -6,6 +6,7 @@ import typing as t
 import warnings
 import xml.etree.ElementTree as ET
 
+import duckdb
 import polars as pl
 import requests
 
@@ -21,9 +22,81 @@ class DVMS:
 
     # Tracking: 38, Metadata: 40, Physical Splits: 42, Physical Total/Summary: 43
     SUBTYPE_TRACKING = 38
+    SUBTYPE_EVENTS = 20
     SUBTYPE_METADATA = 40
     SUBTYPE_SPLITS = 42
     SUBTYPE_SUMMARY = 43
+
+    EVENT_TYPES = {
+        1: "Pass",
+        2: "Offside Pass",
+        3: "Take On",
+        4: "Foul",
+        5: "Out",
+        6: "Corner Awarded",
+        7: "Tackle",
+        8: "Interception",
+        10: "Save",
+        11: "Claim",
+        12: "Clearance",
+        13: "Miss",
+        14: "Post",
+        15: "Attempt Saved",
+        16: "Goal",
+        17: "Card",
+        18: "Player Off",
+        19: "Player on",
+        20: "Player retired",
+        21: "Player returns",
+        22: "Player becomes goalkeeper",
+        23: "Goalkeeper becomes player",
+        24: "Condition change",
+        25: "Official change",
+        27: "Start delay",
+        28: "End delay",
+        30: "End",
+        32: "Start",
+        34: "Team set up",
+        36: "Player changed Jersey number",
+        37: "Collection End",
+        38: "Temp_Goal",
+        39: "Temp_Attempt",
+        40: "Formation change",
+        41: "Punch",
+        42: "Good skill",
+        43: "Deleted event",
+        44: "Aerial",
+        45: "Challenge",
+        49: "Ball recovery",
+        50: "Dispossessed",
+        51: "Error",
+        52: "Keeper pick-up",
+        53: "Cross not claimed",
+        54: "Smother",
+        55: "Offside provoked",
+        56: "Shield ball opp",
+        57: "Foul throw-in",
+        58: "Penalty faced",
+        59: "Keeper Sweeper",
+        60: "Chance missed",
+        61: "Ball touch",
+        63: "Temp_Save",
+        64: "Resume",
+        65: "Contentious referee decision",
+        67: "50/50",
+        68: "Referee Drop Ball",
+        70: "Injury Time Announcement",
+        71: "Coach Setup",
+        74: "Blocked Pass",
+        75: "Delayed Start",
+        76: "Early end",
+        79: "Coverage interruption",
+        80: "Drop of Ball",
+        81: "Obstacle",
+        82: "Control",
+        83: "Attempted Tackle",
+        84: "Deleted After Review",
+    }
 
     COMP_MAP = {
         "English Premier League": "8",
@@ -163,6 +236,27 @@ class DVMS:
             opta_match_id,
         )
 
+    def events(self, *, opta_match_id: str | int, format: str = "dataframe"):
+        """
+        Get match events for a match and enrich with event type names.
+
+        Args:
+            opta_match_id: Match id (with or without 'g' prefix)
+            format: "dataframe" (default) or "json"
+        """
+        self._ensure_fixtures_loaded()
+
+        events_xml = self._download_physical(str(opta_match_id), self.SUBTYPE_EVENTS)
+        match_events = self._parse_events_xml(events_xml)
+        events_df = self._join_events_with_type_labels(match_events)
+
+        fmt = format.lower()
+        if fmt == "dataframe":
+            return events_df
+        if fmt == "json":
+            return events_df.to_dict(orient="records")
+        raise ValueError("format must be 'dataframe' or 'json'")
+
     # ============================
     # Internals
     # ============================
@@ -209,7 +303,13 @@ class DVMS:
             fx_match_id_clean = (fx.get("optaMatchId") or "").replace("g", "")
             for asset in fx.get("assets", []):
                 sub_type = asset.get("subType")
-                if sub_type in (self.SUBTYPE_TRACKING, self.SUBTYPE_METADATA, self.SUBTYPE_SPLITS, self.SUBTYPE_SUMMARY):
+                if sub_type in (
+                    self.SUBTYPE_EVENTS,
+                    self.SUBTYPE_TRACKING,
+                    self.SUBTYPE_METADATA,
+                    self.SUBTYPE_SPLITS,
+                    self.SUBTYPE_SUMMARY,
+                ):
                     out.append(
                         {
                             "fixture_id": fx["fixtureId"],
@@ -273,6 +373,88 @@ class DVMS:
     def _download_asset_json(self, competition_id: str, fixture_id: str, asset_id: str) -> dict:
         url = f"{self.BASE_URL}/dvms/{competition_id}/fixtures/{fixture_id}/download/{asset_id}"
         return self._get(url).json()
+
+    def _parse_events_xml(self, xml_text: str) -> list[dict]:
+        try:
+            root = ET.fromstring(xml_text)
+        except ET.ParseError as e:
+            raise RuntimeError("Failed to parse events XML payload.") from e
+
+        match_events: list[dict] = []
+        for game in root.findall(".//Game"):
+            for event in game.findall("Event"):
+                match_events.append(
+                    {
+                        "opta_matchid": game.get("id"),
+                        "id": event.get("id"),
+                        "event_id": event.get("event_id"),
+                        "type_id": event.get("type_id"),
+                        "period_id": event.get("period_id"),
+                        "min": event.get("min"),
+                        "sec": event.get("sec"),
+                        "player_id": event.get("player_id"),
+                        "team_id": event.get("team_id"),
+                        "outcome": event.get("outcome"),
+                        "x": event.get("x"),
+                        "y": event.get("y"),
+                        "timestamp": event.get("timestamp"),
+                        "timestamp_utc": event.get("timestamp_utc"),
+                        "last_modified": event.get("last_modified"),
+                    }
+                )
+        return match_events
+
+    def _join_events_with_type_labels(self, match_events: list[dict]):
+        if not match_events:
+            return pl.DataFrame(
+                schema={
+                    "opta_matchid": pl.Utf8,
+                    "id": pl.Utf8,
+                    "event_id": pl.Utf8,
+                    "type_id": pl.Utf8,
+                    "period_id": pl.Utf8,
+                    "min": pl.Utf8,
+                    "sec": pl.Utf8,
+                    "player_id": pl.Utf8,
+                    "team_id": pl.Utf8,
+                    "outcome": pl.Utf8,
+                    "x": pl.Utf8,
+                    "y": pl.Utf8,
+                    "timestamp": pl.Utf8,
+                    "timestamp_utc": pl.Utf8,
+                    "last_modified": pl.Utf8,
+                    "event_type": pl.Utf8,
+                }
+            ).to_pandas()
+
+        events_df = pl.DataFrame(match_events)
+        event_types_df = pl.DataFrame(
+            {
+                "type_id": list(self.EVENT_TYPES.keys()),
+                "event_type": list(self.EVENT_TYPES.values()),
+            }
+        )
+
+        con = duckdb.connect()
+        try:
+            con.register("events_raw", events_df.to_arrow())
+            con.register("event_types", event_types_df.to_arrow())
+            return con.execute(
+                """
+                SELECT
+                    e.*,
+                    t.event_type
+                FROM events_raw e
+                LEFT JOIN event_types t
+                    ON TRY_CAST(e.type_id AS INTEGER) = t.type_id
+                ORDER BY
+                    TRY_CAST(e.min AS INTEGER) NULLS LAST,
+                    TRY_CAST(e.sec AS INTEGER) NULLS LAST,
+                    TRY_CAST(e.id AS BIGINT) NULLS LAST
+                """
+            ).fetchdf()
+        finally:
+            con.close()
 
     # (Optional) Events / Tracking helpers you can add later if needed:
     # def tracking(self, *, opta_match_id: str) -> pl.DataFrame: ...
