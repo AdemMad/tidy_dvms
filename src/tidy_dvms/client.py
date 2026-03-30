@@ -20,9 +20,10 @@ class DVMS:
     BASE_URL = "https://dvms.premierleague.com"
     AUTH_URL = f"{BASE_URL}/api/v2/authenticate"
 
-    # Tracking: 38, Metadata: 40, Physical Splits: 42, Physical Total/Summary: 43
+    # Events: 20, Lineups: 21, Tracking: 38, Metadata: 40, Physical Splits: 42, Physical Total/Summary: 43
     SUBTYPE_TRACKING = 38
     SUBTYPE_EVENTS = 20
+    SUBTYPE_LINEUPS = 21
     SUBTYPE_METADATA = 40
     SUBTYPE_SPLITS = 42
     SUBTYPE_SUMMARY = 43
@@ -374,23 +375,54 @@ class DVMS:
         """
         self._ensure_fixtures_loaded()
 
-        events_xml = self._download_physical(str(opta_match_id), self.SUBTYPE_EVENTS)
+        normalized_match_id = self._normalize_opta_match_id(opta_match_id)
+        events_xml = self._download_physical(normalized_match_id, self.SUBTYPE_EVENTS)
+        lineup_rows: list[dict] = []
         player_lookup: dict[str, str] = {}
         try:
-            metadata_raw = self._download_metadata(str(opta_match_id))
-            player_lookup = self._build_player_lookup(metadata_raw)
+            lineups_xml = self._download_physical(normalized_match_id, self.SUBTYPE_LINEUPS)
+            lineup_rows = self._parse_lineups_xml(lineups_xml, opta_match_id=normalized_match_id)
         except Exception:
-            # Events can still be returned even if metadata/player names are unavailable.
-            player_lookup = {}
+            try:
+                metadata_raw = self._download_metadata(normalized_match_id)
+                player_lookup = self._build_player_lookup(metadata_raw)
+            except Exception:
+                # Events can still be returned even if lineup/player names are unavailable.
+                player_lookup = {}
 
-        match_events = self._parse_events_xml(events_xml, player_lookup=player_lookup)
-        events_df = self._join_events_with_type_labels(match_events)
+        match_events = self._parse_events_xml(
+            events_xml,
+            opta_match_id=normalized_match_id,
+            player_lookup=player_lookup,
+        )
+        events_df = self._join_events_with_type_labels(match_events, lineup_rows=lineup_rows)
 
         fmt = format.lower()
         if fmt == "dataframe":
             return events_df
         if fmt == "json":
             return events_df.to_dict(orient="records")
+        raise ValueError("format must be 'dataframe' or 'json'")
+
+    def lineups(self, *, opta_match_id: str | int, format: str = "dataframe"):
+        """
+        Get match lineups for a match.
+
+        Args:
+            opta_match_id: Match id (with or without 'g' prefix)
+            format: "dataframe" (default) or "json"
+        """
+        self._ensure_fixtures_loaded()
+
+        lineups_xml = self._download_physical(str(opta_match_id), self.SUBTYPE_LINEUPS)
+        match_lineups = self._parse_lineups_xml(lineups_xml, opta_match_id=opta_match_id)
+        lineups_df = self._lineups_to_dataframe(match_lineups)
+
+        fmt = format.lower()
+        if fmt == "dataframe":
+            return lineups_df
+        if fmt == "json":
+            return lineups_df.to_dict(orient="records")
         raise ValueError("format must be 'dataframe' or 'json'")
 
     # ============================
@@ -439,6 +471,7 @@ class DVMS:
                 sub_type = asset.get("subType")
                 if sub_type in (
                     self.SUBTYPE_EVENTS,
+                    self.SUBTYPE_LINEUPS,
                     self.SUBTYPE_TRACKING,
                     self.SUBTYPE_METADATA,
                     self.SUBTYPE_SPLITS,
@@ -462,9 +495,10 @@ class DVMS:
     def _find_asset(self, *, opta_match_id: str, sub_type: int) -> dict:
         if not self._fixture_assets:
             raise RuntimeError("No cached assets. Call fixtures(...) first.")
-        match_assets = [a for a in self._fixture_assets if a["opta_match_id"] == str(opta_match_id)]
+        normalized_match_id = self._normalize_opta_match_id(opta_match_id)
+        match_assets = [a for a in self._fixture_assets if a["opta_match_id"] == normalized_match_id]
         if not match_assets:
-            raise ValueError(f"No cached assets for match {opta_match_id}.")
+            raise ValueError(f"No cached assets for match {normalized_match_id}.")
 
         typed_assets = [a for a in match_assets if a["sub_type"] == sub_type]
         if typed_assets:
@@ -473,7 +507,7 @@ class DVMS:
 
         available_subtypes = sorted({a["sub_type"] for a in match_assets})
         raise ValueError(
-            f"No asset for match {opta_match_id} with sub_type {sub_type}. "
+            f"No asset for match {normalized_match_id} with sub_type {sub_type}. "
             f"Available sub_types: {available_subtypes}"
         )
 
@@ -519,6 +553,47 @@ class DVMS:
         url = f"{self.BASE_URL}/dvms/{competition_id}/fixtures/{fixture_id}/download/{asset_id}"
         return self._get(url).json()
 
+    @staticmethod
+    def _normalize_opta_match_id(opta_match_id: str | int | None) -> str:
+        if opta_match_id is None:
+            return ""
+        return str(opta_match_id).replace("g", "").strip()
+
+    def _lookup_fixture_context(self, opta_match_id: str | int) -> dict[str, str | None]:
+        normalized_match_id = self._normalize_opta_match_id(opta_match_id)
+        base_context = {
+            "opta_match_id": normalized_match_id,
+            "fixture": None,
+            "game_date": None,
+        }
+        if not self._fixtures_list:
+            return base_context
+
+        for fixture in self._fixtures_list:
+            if self._normalize_opta_match_id(fixture.get("optaMatchId")) != normalized_match_id:
+                continue
+
+            home_team = fixture.get("homeTeamName")
+            away_team = fixture.get("awayTeamName")
+            fixture_name = f"{home_team} - {away_team}" if home_team and away_team else None
+            fixture_date = fixture.get("date")
+            if isinstance(fixture_date, str):
+                fixture_date = fixture_date[:10]
+
+            return {
+                "opta_match_id": normalized_match_id,
+                "fixture": fixture_name,
+                "game_date": fixture_date,
+            }
+
+        return base_context
+
+    @staticmethod
+    def _strip_prefix(value: str | None, prefix: str) -> str | None:
+        if not value:
+            return None
+        return value[len(prefix):] if value.startswith(prefix) else value
+
     def _build_player_lookup(self, metadata_raw: dict | None) -> dict[str, str]:
         lookup: dict[str, str] = {}
         if not metadata_raw:
@@ -541,12 +616,54 @@ class DVMS:
                     lookup[str(player_id)] = str(player_name)
         return lookup
 
-    def _parse_events_xml(self, xml_text: str, player_lookup: dict[str, str] | None = None) -> list[dict]:
+    def _parse_lineups_xml(self, xml_text: str, *, opta_match_id: str | int | None = None) -> list[dict]:
+        try:
+            root = ET.fromstring(xml_text)
+        except ET.ParseError as e:
+            raise RuntimeError("Failed to parse lineups XML payload.") from e
+
+        fixture_context = self._lookup_fixture_context(opta_match_id) if opta_match_id is not None else {}
+        lineup_rows: list[dict] = []
+
+        for team in root.findall(".//Team"):
+            team_name = team.findtext("Name")
+            team_id = self._strip_prefix(team.get("uID"), "t")
+
+            for player in team.findall("Player"):
+                first_name = player.findtext("PersonName/First", "")
+                last_name = player.findtext("PersonName/Last", "")
+                player_name = f"{first_name} {last_name}".strip() or None
+
+                lineup_rows.append(
+                    {
+                        "opta_match_id": fixture_context.get("opta_match_id"),
+                        "team_id": team_id,
+                        "team_name": team_name,
+                        "player_id": self._strip_prefix(player.get("uID"), "p"),
+                        "player_name": player_name,
+                        "position": player.get("Position"),
+                        "shirt_number": player.get("ShirtNumber") or player.get("shirtNumber"),
+                        "status": player.get("Status") or player.get("status"),
+                        "fixture": fixture_context.get("fixture"),
+                        "game_date": fixture_context.get("game_date"),
+                    }
+                )
+
+        return lineup_rows
+
+    def _parse_events_xml(
+        self,
+        xml_text: str,
+        *,
+        opta_match_id: str | int | None = None,
+        player_lookup: dict[str, str] | None = None,
+    ) -> list[dict]:
         try:
             root = ET.fromstring(xml_text)
         except ET.ParseError as e:
             raise RuntimeError("Failed to parse events XML payload.") from e
 
+        fixture_context = self._lookup_fixture_context(opta_match_id) if opta_match_id is not None else {}
         player_lookup = player_lookup or {}
         match_events: list[dict] = []
         for game in root.findall(".//Game"):
@@ -554,9 +671,10 @@ class DVMS:
             away_team_id = str(game.get("away_team_id") or "")
             home_team_name = game.get("home_team_name")
             away_team_name = game.get("away_team_name")
-            fixture = None
+            fixture = fixture_context.get("fixture")
             if home_team_name and away_team_name:
                 fixture = f"{home_team_name} - {away_team_name}"
+            game_date = game.get("game_date") or fixture_context.get("game_date")
 
             for event in game.findall("Event"):
                 team_id = event.get("team_id")
@@ -567,14 +685,16 @@ class DVMS:
                     elif team_id == away_team_id:
                         team_name = away_team_name
 
-                player_id = event.get("player_id")
+                player_id = self._strip_prefix(event.get("player_id"), "p")
                 player_name = event.get("player_name")
                 if not player_name and player_id is not None:
                     player_name = player_lookup.get(str(player_id))
 
                 match_events.append(
                     {
+                        "opta_match_id": fixture_context.get("opta_match_id"),
                         "event_id": event.get("id"),
+                        "player_id": player_id,
                         "type_id": event.get("type_id"),
                         "outcome_code": event.get("outcome"),
                         "player_name": player_name,
@@ -585,12 +705,12 @@ class DVMS:
                         "y": event.get("y"),
                         "timestamp": event.get("timestamp"),
                         "fixture": fixture,
-                        "game_date": game.get("game_date"),
+                        "game_date": game_date,
                     }
                 )
         return match_events
 
-    def _join_events_with_type_labels(self, match_events: list[dict]):
+    def _join_events_with_type_labels(self, match_events: list[dict], *, lineup_rows: list[dict] | None = None):
         if not match_events:
             return pl.DataFrame(
                 schema={
@@ -610,15 +730,35 @@ class DVMS:
 
         events_df = pl.DataFrame(match_events)
         event_defs_df = pl.DataFrame(self._build_event_definitions_rows())
+        lineups_lookup_df = (
+            pl.DataFrame(lineup_rows)
+            if lineup_rows
+            else pl.DataFrame(
+                schema={
+                    "opta_match_id": pl.Utf8,
+                    "player_id": pl.Utf8,
+                    "player_name": pl.Utf8,
+                }
+            )
+        )
 
         con = duckdb.connect()
         try:
             con.register("events_raw", events_df.to_arrow())
             con.register("event_defs", event_defs_df.to_arrow())
+            con.register("lineups_raw", lineups_lookup_df.to_arrow())
             return con.execute(
                 """
+                WITH lineup_players AS (
+                    SELECT DISTINCT
+                        opta_match_id,
+                        player_id,
+                        player_name
+                    FROM lineups_raw
+                    WHERE player_id IS NOT NULL
+                )
                 SELECT
-                    e.player_name,
+                    COALESCE(NULLIF(e.player_name, ''), l.player_name) AS player_name,
                     e.team_name,
                     e.min,
                     e.sec,
@@ -637,6 +777,9 @@ class DVMS:
                     e.fixture,
                     e.game_date
                 FROM events_raw e
+                LEFT JOIN lineup_players l
+                    ON e.opta_match_id = l.opta_match_id
+                   AND e.player_id = l.player_id
                 LEFT JOIN event_defs d
                     ON TRY_CAST(e.type_id AS INTEGER) = d.type_id
                 ORDER BY
@@ -647,6 +790,37 @@ class DVMS:
             ).fetchdf()
         finally:
             con.close()
+
+    def _lineups_to_dataframe(self, lineup_rows: list[dict]):
+        if not lineup_rows:
+            return pl.DataFrame(
+                schema={
+                    "opta_match_id": pl.Utf8,
+                    "team_id": pl.Utf8,
+                    "team_name": pl.Utf8,
+                    "player_id": pl.Utf8,
+                    "player_name": pl.Utf8,
+                    "position": pl.Utf8,
+                    "shirt_number": pl.Utf8,
+                    "status": pl.Utf8,
+                    "fixture": pl.Utf8,
+                    "game_date": pl.Utf8,
+                }
+            ).to_pandas()
+
+        return (
+            pl.DataFrame(lineup_rows)
+            .with_columns(
+                pl.col("shirt_number").cast(pl.Int64, strict=False).alias("_shirt_number_sort")
+            )
+            .sort(
+                by=["team_name", "_shirt_number_sort", "player_name"],
+                descending=[False, False, False],
+                nulls_last=True,
+            )
+            .drop("_shirt_number_sort")
+            .to_pandas()
+        )
 
     def _build_event_definitions_rows(self) -> list[dict]:
         all_type_ids = sorted(set(self.EVENT_TYPES.keys()) | set(self.OUTCOME_DEFINITIONS.keys()))

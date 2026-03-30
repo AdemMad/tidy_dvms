@@ -1,6 +1,6 @@
 # tidy_dvms
 
-**Unofficial** Python client for working with Premier League **DVMS / Second Spectrum** tracking data (fixtures, physical splits, summary, and events), with a clean API and **Polars-first** processing.  
+**Unofficial** Python client for working with Premier League **DVMS / Second Spectrum** tracking data (fixtures, physical splits, summary, events, and lineups), with a clean API and **Polars-first** processing.  
 _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl._
 
 > ⚠️ You must have valid DVMS credentials issued by your organisation. Do **not** commit credentials to source control.
@@ -17,6 +17,7 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
   - [fixtures](#fixtures)
   - [splits](#splits)
   - [summary](#summary)
+  - [lineups](#lineups)
   - [events](#events)
 - [Examples](#examples)
   - [Loop over all fixtures](#loop-over-all-fixtures)
@@ -39,6 +40,7 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
   client.fixtures(format="dataframe" | "json")
   client.splits(opta_match_id=..., type="players" | "teams")
   client.summary(opta_match_id=...)
+  client.lineups(opta_match_id=...)
   client.events(opta_match_id=...)
   ```
 - Choose **DataFrame** or **raw JSON (list[dict])** for fixtures:
@@ -90,6 +92,7 @@ opta_match_id = 2561923
 players = client.splits(opta_match_id=opta_match_id, type="players")
 teams   = client.splits(opta_match_id=opta_match_id, type="teams")
 summary = client.summary(opta_match_id=opta_match_id)
+lineups = client.lineups(opta_match_id=opta_match_id)
 events  = client.events(opta_match_id=opta_match_id)
 ```
 
@@ -133,7 +136,7 @@ Fetches fixtures for the configured season/competition and **caches assets** for
 - `format="json"`: returns the raw `list[dict]` response
 
 Side effects:
-- Caches competition IDs and fixture assets (enables `splits()` / `summary()` / `events()`).
+- Caches competition IDs and fixture assets (enables `splits()` / `summary()` / `lineups()` / `events()`).
 
 ---
 
@@ -164,13 +167,28 @@ Returns physical **summary** for the specified match.
 
 ---
 
+### lineups
+
+```python
+lineups(*, opta_match_id: str, format: str = "dataframe") -> pd.DataFrame | list[dict]
+```
+
+Returns match **lineups** for the specified match.
+
+- `format="dataframe"` (default): pandas DataFrame
+- `format="json"`: `list[dict]`
+
+> Requires `fixtures()` first.
+
+---
+
 ### events
 
 ```python
 events(*, opta_match_id: str, format: str = "dataframe") -> pd.DataFrame | list[dict]
 ```
 
-Returns match **events** for the specified match. Event names are joined by `type_id` using DuckDB.
+Returns match **events** for the specified match. Event names are joined by `type_id` using DuckDB, and player names are backfilled from lineup data by `player_id` when needed.
 
 - `format="dataframe"` (default): pandas DataFrame
 - `format="json"`: `list[dict]`
@@ -200,11 +218,13 @@ for mid in fx.get_column("opta_match_id").unique():
     players = client.splits(opta_match_id=mid, type="players")
     teams   = client.splits(opta_match_id=mid, type="teams")
     summary = client.summary(opta_match_id=mid)
+    lineups = client.lineups(opta_match_id=mid)
     events  = client.events(opta_match_id=mid)
 
     players.write_csv(f"players_{mid}.csv")
     teams.write_csv(f"teams_{mid}.csv")
     summary.write_csv(f"summary_{mid}.csv")
+    lineups.to_csv(f"lineups_{mid}.csv", index=False)
     events.to_csv(f"events_{mid}.csv", index=False)
 ```
 
@@ -220,6 +240,7 @@ for fx in fixtures:
     teams   = client.splits(opta_match_id=mid, type="teams")
     players = client.splits(opta_match_id=mid, type="players")
     summary = client.summary(opta_match_id=mid)
+    lineups = client.lineups(opta_match_id=mid)
     events  = client.events(opta_match_id=mid)
 ```
 
