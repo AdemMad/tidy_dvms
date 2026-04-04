@@ -1,9 +1,10 @@
 # tidy_dvms
 
-**Unofficial** Python client for working with Premier League **DVMS / Second Spectrum** tracking data (fixtures, physical splits, summary, events, and lineups), with a clean API and **Polars-first** processing.  
-_Not affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl._
+Unofficial Python client for working with Premier League DVMS / Second Spectrum data
+(fixtures, physical splits, summary, events, and lineups).
+Not affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.
 
-> ⚠️ You must have valid DVMS credentials issued by your organisation. Do **not** commit credentials to source control.
+> ⚠️ You must have valid DVMS credentials issued by your organisation. Do not commit credentials to source control.
 
 ---
 
@@ -35,19 +36,17 @@ _Not affiliated with, endorsed by, or sponsored by the Premier League, Second Sp
 
 ## Features
 
-- Minimal, explicit API:
+- Minimal API with method-level context:
   ```python
-  client.fixtures(format="dataframe" | "json")
-  client.splits(opta_match_id=..., type="players" | "teams")
-  client.summary(opta_match_id=...)
-  client.lineups(opta_match_id=...)
-  client.events(opta_match_id=...)
+  client.fixtures(competition=..., season=..., creds=..., format="dataframe" | "json")
+  client.splits(opta_match_id=..., competition=..., season=..., creds=..., type="players" | "teams")
+  client.summary(opta_match_id=..., competition=..., season=..., creds=...)
+  client.lineups(opta_match_id=..., competition=..., season=..., creds=...)
+  client.events(opta_match_id=..., competition=..., season=..., creds=...)
   ```
-- Choose **DataFrame** or **raw JSON (list[dict])** for fixtures:
-  - DataFrame for quick exploration / saving to CSV.
-  - JSON for flexible iteration (e.g., loop over `opta_match_id`).
-- Only returns assets for **matches with available data** (played/processed).
-- Built on **Polars**, compatible with **pandas**, **PyArrow**, and **DuckDB**.
+- `splits()`, `summary()`, `lineups()`, and `events()` automatically load fixtures for the active context when needed.
+- Choose DataFrame or raw JSON for fixtures.
+- Built on Polars / DuckDB internally and returns analysis-friendly DataFrames.
 - Simple, configurable retries for HTTP calls.
 
 ---
@@ -74,26 +73,55 @@ py -m pip install "git+https://github.com/AdemMad/tidy_dvms.git@main"
 ## Quickstart
 
 ```python
+import os
 from tidy_dvms import DVMS
 
-client = DVMS(
-    season=2025,                                # e.g., 2020–2025
-    competition_name="English Premier League",  # e.g., EPL / Championship / Cups (depending on access)
-    username="YOUR_EMAIL",
-    password="YOUR_PASSWORD",
+client = DVMS()
+creds = {
+    "username": os.environ["DVMS_USERNAME"],
+    "password": os.environ["DVMS_PASSWORD"],
+}
+
+fixtures_df = client.fixtures(
+    competition="English Premier League",
+    season=2025,
+    creds=creds,
+    format="dataframe",
 )
 
-# 1) Fixtures (choose representation)
-fixtures_df   = client.fixtures(format="dataframe")  # DataFrame
-fixtures_json = client.fixtures(format="json")       # list[dict]
-
-# 2) Choose a match and compute outputs
 opta_match_id = 2561923
-players = client.splits(opta_match_id=opta_match_id, type="players")
-teams   = client.splits(opta_match_id=opta_match_id, type="teams")
-summary = client.summary(opta_match_id=opta_match_id)
-lineups = client.lineups(opta_match_id=opta_match_id)
-events  = client.events(opta_match_id=opta_match_id)
+players = client.splits(
+    opta_match_id=opta_match_id,
+    competition="English Premier League",
+    season=2025,
+    creds=creds,
+    type="players",
+)
+teams = client.splits(
+    opta_match_id=opta_match_id,
+    competition="English Premier League",
+    season=2025,
+    creds=creds,
+    type="teams",
+)
+summary = client.summary(
+    opta_match_id=opta_match_id,
+    competition="English Premier League",
+    season=2025,
+    creds=creds,
+)
+lineups = client.lineups(
+    opta_match_id=opta_match_id,
+    competition="English Premier League",
+    season=2025,
+    creds=creds,
+)
+events = client.events(
+    opta_match_id=opta_match_id,
+    competition="English Premier League",
+    season=2025,
+    creds=creds,
+)
 ```
 
 ---
@@ -104,10 +132,10 @@ events  = client.events(opta_match_id=opta_match_id)
 
 ```python
 DVMS(
-    season: int,
-    competition_name: str,
-    username: str,
-    password: str,
+    season: int | None = None,
+    competition_name: str | None = None,
+    username: str | None = None,
+    password: str | None = None,
     *,
     request_timeout: int = 30,
     request_retries: int = 3,
@@ -115,85 +143,123 @@ DVMS(
 )
 ```
 
-Creates an authenticated client and sets defaults used by all calls.
+Creates a client instance.
 
-- `season` — e.g., `2025`
-- `competition_name` — e.g., `"English Premier League"`, `"EFL Championship"`, `"EFL Cup"`, `"FA Cup"` (depending on access)
-- `username`, `password` — DVMS credentials
-- Retry/timeout knobs for transient HTTP issues
+Recommended style:
+- Initialize with `DVMS()` and pass `competition`, `season`, and `creds` into each public method.
+
+Also supported:
+- You can still provide `season`, `competition_name`, `username`, and `password` at initialization time if you want defaults.
 
 ---
 
 ### fixtures
 
 ```python
-fixtures(format: str = "dataframe") -> pl.DataFrame | list[dict]
+fixtures(
+    *,
+    competition: str | None = None,
+    season: int | None = None,
+    creds: dict[str, str] | None = None,
+    format: str = "dataframe",
+) -> DataFrame | list[dict]
 ```
 
-Fetches fixtures for the configured season/competition and **caches assets** for later calls.
+Fetches fixtures for the provided competition/season and caches fixture assets for later match-level calls.
 
-- `format="dataframe"` (default): returns a DataFrame with normalized `opta_match_id` (no leading `'g'`)
-- `format="json"`: returns the raw `list[dict]` response
+- `competition`: for example `"English Premier League"`, `"EFL Championship"`, `"EFL Cup"`, `"FA Cup"`
+- `season`: for example `2025`
+- `creds`: `{"username": "...", "password": "..."}`
+- `format="dataframe"`: returns a DataFrame with normalized `opta_match_id`
+- `format="json"`: returns the raw `list[dict]` payload
 
-Side effects:
-- Caches competition IDs and fixture assets (enables `splits()` / `summary()` / `lineups()` / `events()`).
+If an argument is omitted, the client falls back to constructor defaults or the most recently used context.
 
 ---
 
 ### splits
 
 ```python
-splits(*, opta_match_id: str, type: str = "players") -> pl.DataFrame
+splits(
+    *,
+    opta_match_id: str,
+    competition: str | None = None,
+    season: int | None = None,
+    creds: dict[str, str] | None = None,
+    type: str = "players",
+    model_form: str = "denormalized",
+) -> DataFrame
 ```
 
-Returns physical **splits** for the specified match.
+Returns physical splits for a match.
 
-- `type="players"` → per-player splits DataFrame  
-- `type="teams"` → per-team splits DataFrame
+- `type="players"` returns per-player splits
+- `type="teams"` returns per-team splits
+- `model_form="denormalized"` or `"normalized"`
 
-> Requires `fixtures()` to have been called (to cache assets).
+The client automatically loads fixtures for the active context if needed.
 
 ---
 
 ### summary
 
 ```python
-summary(*, opta_match_id: str) -> pl.DataFrame
+summary(
+    *,
+    opta_match_id: str,
+    competition: str | None = None,
+    season: int | None = None,
+    creds: dict[str, str] | None = None,
+) -> DataFrame
 ```
 
-Returns physical **summary** for the specified match.
+Returns physical summary for a match.
 
-> Requires `fixtures()` first.
+The client automatically loads fixtures for the active context if needed.
 
 ---
 
 ### lineups
 
 ```python
-lineups(*, opta_match_id: str, format: str = "dataframe") -> pd.DataFrame | list[dict]
+lineups(
+    *,
+    opta_match_id: str,
+    competition: str | None = None,
+    season: int | None = None,
+    creds: dict[str, str] | None = None,
+    format: str = "dataframe",
+) -> DataFrame | list[dict]
 ```
 
-Returns match **lineups** for the specified match.
+Returns match lineups for a match.
 
-- `format="dataframe"` (default): pandas DataFrame
+- `format="dataframe"` returns a DataFrame
 - `format="json"`: `list[dict]`
 
-> Requires `fixtures()` first.
+The client automatically loads fixtures for the active context if needed.
 
 ---
 
 ### events
 
 ```python
-events(*, opta_match_id: str, format: str = "dataframe") -> pd.DataFrame | list[dict]
+events(
+    *,
+    opta_match_id: str,
+    competition: str | None = None,
+    season: int | None = None,
+    creds: dict[str, str] | None = None,
+    format: str = "dataframe",
+) -> DataFrame | list[dict]
 ```
 
-Returns match **events** for the specified match. Event names are joined by `type_id` using DuckDB, and player names are backfilled from lineup data by `player_id` when needed.
+Returns match events for a match. Event names are joined by `type_id`, and player names are backfilled from lineup or metadata payloads when available.
 
-- `format="dataframe"` (default): pandas DataFrame
+- `format="dataframe"` returns a DataFrame
 - `format="json"`: `list[dict]`
 
-> Requires `fixtures()` first.
+The client automatically loads fixtures for the active context if needed.
 
 ---
 
@@ -202,24 +268,57 @@ Returns match **events** for the specified match. Event names are joined by `typ
 ### Loop over all fixtures
 
 ```python
+import os
 from tidy_dvms import DVMS
 
-client = DVMS(
-    season=2025,
-    competition_name="English Premier League",
-    username="YOUR_EMAIL",
-    password="YOUR_PASSWORD",
+client = DVMS()
+competition = "English Premier League"
+season = 2025
+creds = {
+    "username": os.environ["DVMS_USERNAME"],
+    "password": os.environ["DVMS_PASSWORD"],
+}
+
+fx = client.fixtures(
+    competition=competition,
+    season=season,
+    creds=creds,
+    format="dataframe",
 )
 
-fx = client.fixtures(format="dataframe")
-
-# If fx is Polars: fx.get_column(...).unique() works
-for mid in fx.get_column("opta_match_id").unique():
-    players = client.splits(opta_match_id=mid, type="players")
-    teams   = client.splits(opta_match_id=mid, type="teams")
-    summary = client.summary(opta_match_id=mid)
-    lineups = client.lineups(opta_match_id=mid)
-    events  = client.events(opta_match_id=mid)
+for mid in fx["opta_match_id"].dropna().unique():
+    players = client.splits(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+        type="players",
+    )
+    teams = client.splits(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+        type="teams",
+    )
+    summary = client.summary(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+    )
+    lineups = client.lineups(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+    )
+    events = client.events(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+    )
 
     players.write_csv(f"players_{mid}.csv")
     teams.write_csv(f"teams_{mid}.csv")
@@ -231,17 +330,49 @@ for mid in fx.get_column("opta_match_id").unique():
 ### Work from JSON
 
 ```python
-fixtures = client.fixtures(format="json")  # list[dict]
+fixtures = client.fixtures(
+    competition=competition,
+    season=season,
+    creds=creds,
+    format="json",
+)
 
 for fx in fixtures:
     mid = (fx.get("optaMatchId") or "").replace("g", "")
     if not mid:
         continue
-    teams   = client.splits(opta_match_id=mid, type="teams")
-    players = client.splits(opta_match_id=mid, type="players")
-    summary = client.summary(opta_match_id=mid)
-    lineups = client.lineups(opta_match_id=mid)
-    events  = client.events(opta_match_id=mid)
+    teams = client.splits(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+        type="teams",
+    )
+    players = client.splits(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+        type="players",
+    )
+    summary = client.summary(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+    )
+    lineups = client.lineups(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+    )
+    events = client.events(
+        opta_match_id=mid,
+        competition=competition,
+        season=season,
+        creds=creds,
+    )
 ```
 
 ### Persist to SQL Server (optional)
@@ -258,7 +389,6 @@ engine = sa.create_engine(
     "TrustServerCertificate=yes;"
 )
 
-# pandas → to_sql
 players.to_sql("PlayersSplits", engine, if_exists="append", index=False)
 ```
 
@@ -266,7 +396,7 @@ players.to_sql("PlayersSplits", engine, if_exists="append", index=False)
 
 ## Configuration & Secrets
 
-- **Never** hardcode credentials. Use environment variables or a secret manager.
+- Never hardcode credentials. Use environment variables or a secret manager.
 - Example (PowerShell):
   ```powershell
   $env:DVMS_USERNAME="you@club.com"
@@ -277,11 +407,17 @@ players.to_sql("PlayersSplits", engine, if_exists="append", index=False)
   import os
   from tidy_dvms import DVMS
 
-  client = DVMS(
+  client = DVMS()
+  creds = {
+      "username": os.environ["DVMS_USERNAME"],
+      "password": os.environ["DVMS_PASSWORD"],
+  }
+
+  fixtures = client.fixtures(
+      competition="English Premier League",
       season=2025,
-      competition_name="English Premier League",
-      username=os.environ["DVMS_USERNAME"],
-      password=os.environ["DVMS_PASSWORD"],
+      creds=creds,
+      format="dataframe",
   )
   ```
 
@@ -289,20 +425,23 @@ players.to_sql("PlayersSplits", engine, if_exists="append", index=False)
 
 ## Troubleshooting
 
-- **`RuntimeError: Call fixtures() first`**  
-  Call `fixtures()` once to cache IDs and assets.
+- `ValueError: Provide creds...`
+  Pass `creds={"username": "...", "password": "..."}` or initialize `DVMS` with username/password defaults.
 
-- **`ValueError: Competition not found`**  
-  Check `competition_name` spelling (and that your account has access).
+- `ValueError: Provide a competition value...` or `ValueError: Provide a season value...`
+  Pass `competition=` and `season=` to the method, or initialize `DVMS` with defaults.
 
-- **401/403 auth issues**  
+- `ValueError: Competition not found`
+  Check the competition spelling and confirm that your account has access.
+
+- `401/403 auth issues`
   Verify credentials and account permissions.
 
-- **429 / transient HTTP failures**  
+- `429 / transient HTTP failures`
   Increase `request_retries` and `sleep_between_retries`. Avoid tight loops.
 
-- **Windows / ODBC**  
-  Install an appropriate ODBC driver (e.g., *ODBC Driver 18 for SQL Server*) if you use `pyodbc`.
+- `Windows / ODBC`
+  Install an appropriate ODBC driver (for example, ODBC Driver 18 for SQL Server) if you use `pyodbc`.
 
 ---
 
@@ -333,21 +472,21 @@ Follows **Semantic Versioning**:
 
 ## License
 
-**MIT** — see [LICENSE](./LICENSE).
+MIT - see [LICENSE](./LICENSE).
 
 ---
 
 ## Author
 
-**Adem Madoun**  
-© 2026 — tidy_dvms  
-Issues & feature requests: please open an issue in the repository.
+Adem Madoun
+(c) 2026 - tidy_dvms
+Issues and feature requests: please open an issue in the repository.
 
 ---
 
 ## Disclaimer
 
-This is an **unofficial** client for working with DVMS / Second Spectrum tracking data.  
-It is **not** affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.  
+This is an **unofficial** client for working with DVMS / Second Spectrum tracking data.
+It is **not** affiliated with, endorsed by, or sponsored by the Premier League, Second Spectrum, or Hudl.
 Use of this software requires valid access and credentials; respect all applicable terms, licenses, and policies.
 

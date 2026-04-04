@@ -236,10 +236,10 @@ class DVMS:
 
     def __init__(
         self,
-        season: int,
-        competition_name: str,
-        username: str,
-        password: str,
+        season: int | None = None,
+        competition_name: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
         *,
         request_timeout: int = 30,
         request_retries: int = 3,
@@ -252,12 +252,18 @@ class DVMS:
         self._retries = request_retries
         self._sleep = sleep_between_retries
 
-        token = self._get_api_key(username, password)
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Hudl-AuthToken": token,
         }
+        self._default_creds: dict[str, str] | None = None
+        self._auth_context: tuple[str, str] | None = None
+        self._fixtures_context: tuple[str, int, str, str] | None = None
+
+        if username is not None or password is not None:
+            if not username or not password:
+                raise ValueError("Provide both username and password when initializing DVMS.")
+            self._authenticate({"username": username, "password": password})
 
         # Caches populated by fixtures()
         self._competition_id: str | None = None
@@ -265,16 +271,108 @@ class DVMS:
         self._fixtures_df: pl.DataFrame | None = None
         self._fixtures_list: list[dict] | None = None
         self._fixture_assets: list[dict] | None = None
+        self.fixtures_json_text: str | None = None
+
+    def _resolve_creds(self, creds: dict[str, str] | None) -> dict[str, str]:
+        resolved = creds or self._default_creds
+        if not resolved:
+            raise ValueError(
+                "Provide creds={'username': ..., 'password': ...} "
+                "or initialize DVMS with username/password."
+            )
+
+        username = resolved.get("username")
+        password = resolved.get("password")
+        if not username or not password:
+            raise ValueError("creds must include non-empty 'username' and 'password' values.")
+
+        return {"username": str(username), "password": str(password)}
+
+    def _resolve_runtime_context(
+        self,
+        *,
+        competition: str | None = None,
+        season: int | None = None,
+        creds: dict[str, str] | None = None,
+    ) -> tuple[str, int, dict[str, str]]:
+        resolved_competition = competition or self.competition_name
+        if not resolved_competition:
+            raise ValueError(
+                "Provide a competition value or initialize DVMS with competition_name."
+            )
+
+        if season is None:
+            if self.season_id is None:
+                raise ValueError("Provide a season value or initialize DVMS with season.")
+            resolved_season = int(self.season_id)
+        else:
+            resolved_season = int(season)
+
+        resolved_creds = self._resolve_creds(creds)
+        return resolved_competition, resolved_season, resolved_creds
+
+    @staticmethod
+    def _build_context_key(
+        competition: str,
+        season: int,
+        creds: dict[str, str],
+    ) -> tuple[str, int, str, str]:
+        return competition, season, creds["username"], creds["password"]
+
+    def _authenticate(self, creds: dict[str, str]) -> None:
+        auth_key = (creds["username"], creds["password"])
+        if self._auth_context == auth_key and self.headers.get("Hudl-AuthToken"):
+            self._default_creds = dict(creds)
+            return
+
+        token = self._get_api_key(creds["username"], creds["password"])
+        self.headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Hudl-AuthToken": token,
+        }
+        self._auth_context = auth_key
+        self._default_creds = dict(creds)
+
+    def _load_fixtures_context(self, competition: str, season: int) -> None:
+        comp = self._resolve_competition(competition)
+        self._competition_id = comp["competitionId"]
+        self._opta_competition_id = comp["optaCompetitionId"]
+        self.competition_name = competition
+        self.season_id = season
+
+        fixtures = self._get_fixtures(self._competition_id, self.season_id)
+        self._fixtures_list = fixtures
+        self.fixtures_json_text = json.dumps(fixtures, ensure_ascii=False)
+
+        df = (
+            pl.DataFrame(fixtures)
+            .with_columns(
+                pl.col("optaMatchId").cast(pl.Utf8).str.replace_all("g", "").alias("opta_match_id")
+            )
+        )
+        self._fixtures_df = transform_fixtures(df).to_pandas()
+        self._fixture_assets = self._collect_fixture_assets(fixtures)
 
     # ============================
     # Public API (your requested UX)
     # ============================
 
-    def fixtures(self, *, format: str = "dataframe"):
+    def fixtures(
+        self,
+        *,
+        competition: str | None = None,
+        season: int | None = None,
+        creds: dict[str, str] | None = None,
+        format: str = "dataframe",
+    ):
         """
-        Fetch fixtures for the season/competition set in __init__ and cache assets.
+        Fetch fixtures for the provided season/competition and cache assets.
 
         Args:
+            competition: Competition name, for example "English Premier League"
+            season: Season id, for example 2025
+            creds: {"username": "...", "password": "..."}
             format: "dataframe" (default) -> returns Polars DataFrame
                     "json"               -> returns Python list[dict] (raw JSON payload)
 
@@ -285,27 +383,18 @@ class DVMS:
             - self._competition_id / self._opta_competition_id
             - self.fixtures_json_text (str) pretty JSON string for convenience
         """
-        comp = self._resolve_competition(self.competition_name)
-        self._competition_id = comp["competitionId"]
-        self._opta_competition_id = comp["optaCompetitionId"]
-
-        fixtures = self._get_fixtures(self._competition_id, self.season_id)
-        self._fixtures_list = fixtures
-        self.fixtures_json_text = json.dumps(fixtures, ensure_ascii=False)  # handy if you need text
-
-        # Build DF (normalized opta_match_id)
-        df = (
-            pl.DataFrame(fixtures)
-            .with_columns(
-                pl.col("optaMatchId").cast(pl.Utf8).str.replace_all("g", "").alias("opta_match_id")
-            )
+        resolved_competition, resolved_season, resolved_creds = self._resolve_runtime_context(
+            competition=competition,
+            season=season,
+            creds=creds,
         )
-        self._fixtures_df = transform_fixtures(df)
-
-        self._fixtures_df = self._fixtures_df.to_pandas()
-
-        # Cache assets for all fixtures
-        self._fixture_assets = self._collect_fixture_assets(fixtures)
+        self._authenticate(resolved_creds)
+        self._load_fixtures_context(resolved_competition, resolved_season)
+        self._fixtures_context = self._build_context_key(
+            resolved_competition,
+            resolved_season,
+            resolved_creds,
+        )
 
         fmt = format.lower()
         if fmt == "dataframe":
@@ -314,16 +403,53 @@ class DVMS:
             return self._fixtures_list
         raise ValueError("format must be 'dataframe' or 'json'")
 
-    def _ensure_fixtures_loaded(self) -> None:
-        if self._fixtures_df is None or self._fixture_assets is None or self._opta_competition_id is None:
-            raise RuntimeError("Call fixtures() first to load and cache fixtures/assets.")
+    def _ensure_fixtures_loaded(
+        self,
+        *,
+        competition: str | None = None,
+        season: int | None = None,
+        creds: dict[str, str] | None = None,
+    ) -> None:
+        resolved_competition, resolved_season, resolved_creds = self._resolve_runtime_context(
+            competition=competition,
+            season=season,
+            creds=creds,
+        )
+        self._authenticate(resolved_creds)
 
-    def splits(self, *, opta_match_id: str, type: str = "players", model_form: str = "denormalized") -> pl.DataFrame:
+        cache_ready = (
+            self._fixtures_df is not None
+            and self._fixture_assets is not None
+            and self._opta_competition_id is not None
+        )
+        context_key = self._build_context_key(
+            resolved_competition,
+            resolved_season,
+            resolved_creds,
+        )
+        if not cache_ready or self._fixtures_context != context_key:
+            self._load_fixtures_context(resolved_competition, resolved_season)
+            self._fixtures_context = context_key
+
+    def splits(
+        self,
+        *,
+        opta_match_id: str,
+        competition: str | None = None,
+        season: int | None = None,
+        creds: dict[str, str] | None = None,
+        type: str = "players",
+        model_form: str = "denormalized",
+    ) -> pl.DataFrame:
         """
         Get physical splits for a match.
         type='players' | 'teams'
         """
-        self._ensure_fixtures_loaded()
+        self._ensure_fixtures_loaded(
+            competition=competition,
+            season=season,
+            creds=creds,
+        )
 
         metadata_raw = self._download_metadata(opta_match_id)
         splits_csv = self._download_physical(opta_match_id, self.SUBTYPE_SPLITS)
@@ -347,12 +473,21 @@ class DVMS:
         elif type.lower() == "teams" and model_form.lower() == "normalized":
             return teams_df_normalized
         raise ValueError("type must be 'players' or 'teams'")
-    
 
-
-    def summary(self, *, opta_match_id: str) -> pl.DataFrame:
+    def summary(
+        self,
+        *,
+        opta_match_id: str,
+        competition: str | None = None,
+        season: int | None = None,
+        creds: dict[str, str] | None = None,
+    ) -> pl.DataFrame:
         """Get physical summary for a match."""
-        self._ensure_fixtures_loaded()
+        self._ensure_fixtures_loaded(
+            competition=competition,
+            season=season,
+            creds=creds,
+        )
 
         metadata_raw = self._download_metadata(opta_match_id)
         summary_csv = self._download_physical(opta_match_id, self.SUBTYPE_SUMMARY)
@@ -365,7 +500,15 @@ class DVMS:
             opta_match_id,
         )
 
-    def events(self, *, opta_match_id: str | int, format: str = "dataframe"):
+    def events(
+        self,
+        *,
+        opta_match_id: str | int,
+        competition: str | None = None,
+        season: int | None = None,
+        creds: dict[str, str] | None = None,
+        format: str = "dataframe",
+    ):
         """
         Get match events for a match and enrich with event type and outcome text.
 
@@ -373,7 +516,11 @@ class DVMS:
             opta_match_id: Match id (with or without 'g' prefix)
             format: "dataframe" (default) or "json"
         """
-        self._ensure_fixtures_loaded()
+        self._ensure_fixtures_loaded(
+            competition=competition,
+            season=season,
+            creds=creds,
+        )
 
         normalized_match_id = self._normalize_opta_match_id(opta_match_id)
         events_xml = self._download_physical(normalized_match_id, self.SUBTYPE_EVENTS)
@@ -404,7 +551,15 @@ class DVMS:
             return events_df.to_dict(orient="records")
         raise ValueError("format must be 'dataframe' or 'json'")
 
-    def lineups(self, *, opta_match_id: str | int, format: str = "dataframe"):
+    def lineups(
+        self,
+        *,
+        opta_match_id: str | int,
+        competition: str | None = None,
+        season: int | None = None,
+        creds: dict[str, str] | None = None,
+        format: str = "dataframe",
+    ):
         """
         Get match lineups for a match.
 
@@ -412,7 +567,11 @@ class DVMS:
             opta_match_id: Match id (with or without 'g' prefix)
             format: "dataframe" (default) or "json"
         """
-        self._ensure_fixtures_loaded()
+        self._ensure_fixtures_loaded(
+            competition=competition,
+            season=season,
+            creds=creds,
+        )
 
         lineups_xml = self._download_physical(str(opta_match_id), self.SUBTYPE_LINEUPS)
         match_lineups = self._parse_lineups_xml(lineups_xml, opta_match_id=opta_match_id)
@@ -494,7 +653,9 @@ class DVMS:
 
     def _find_asset(self, *, opta_match_id: str, sub_type: int) -> dict:
         if not self._fixture_assets:
-            raise RuntimeError("No cached assets. Call fixtures(...) first.")
+            raise RuntimeError(
+                "No cached assets are available for the active competition/season context."
+            )
         normalized_match_id = self._normalize_opta_match_id(opta_match_id)
         match_assets = [a for a in self._fixture_assets if a["opta_match_id"] == normalized_match_id]
         if not match_assets:
